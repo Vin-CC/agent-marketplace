@@ -8,6 +8,8 @@ const AGENTS = [
   { name: "Code Explainer", emoji: "🧑‍💻", desc: "Explains code in plain English", price: "0.10 USDT" },
 ];
 
+const ORCHESTRATOR_WALLET = "0x516D0DbF39F86D0D47460408b50D15F0A9824aCa";
+
 interface Transaction {
   agent: string;
   txHash: string;
@@ -19,6 +21,7 @@ interface Transaction {
 interface OrchestrateResult {
   transactions: Transaction[];
   outputs: Record<string, string>;
+  demoMode?: boolean;
 }
 
 export default function Home() {
@@ -27,18 +30,23 @@ export default function Home() {
   const [targetLanguage, setTargetLanguage] = useState("French");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<OrchestrateResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function runOrchestrator() {
     setLoading(true);
     setResult(null);
+    setError(null);
     try {
       const res = await fetch("/api/orchestrate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task, text, targetLanguage }),
       });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       setResult(data);
+    } catch (e) {
+      setError(String(e));
     } finally {
       setLoading(false);
     }
@@ -52,10 +60,10 @@ export default function Home() {
           <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-orange-400 to-yellow-400 bg-clip-text text-transparent">
             Agent Economy
           </h1>
-          <p className="text-gray-400 text-lg">
+          <p className="text-gray-400 text-lg mb-4">
             AI agents hire other AI agents · Powered by GOAT Network x402 + ERC-8004
           </p>
-          <div className="flex justify-center gap-3 mt-4">
+          <div className="flex justify-center gap-3 flex-wrap">
             <span className="bg-orange-900/40 text-orange-400 px-3 py-1 rounded-full text-sm border border-orange-800">
               🔗 GOAT Testnet3 · Chain 48816
             </span>
@@ -65,6 +73,14 @@ export default function Home() {
             <span className="bg-purple-900/40 text-purple-400 px-3 py-1 rounded-full text-sm border border-purple-800">
               🪪 ERC-8004 identity
             </span>
+            <a
+              href={`https://explorer.testnet3.goat.network/address/${ORCHESTRATOR_WALLET}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-blue-900/40 text-blue-400 px-3 py-1 rounded-full text-sm border border-blue-800 hover:bg-blue-900/70 transition-colors"
+            >
+              🔍 Orchestrator on-chain ↗
+            </a>
           </div>
         </div>
 
@@ -133,22 +149,33 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="bg-red-900/40 border border-red-700 rounded-xl p-4 mb-4 text-red-300">
+            ❌ {error}
+          </div>
+        )}
+
         {/* Results */}
         {result && (
           <div className="space-y-4">
+            {result.demoMode && (
+              <div className="bg-yellow-900/30 border border-yellow-700 rounded-xl p-3 text-yellow-300 text-sm">
+                ⚠️ Demo mode — transactions simulated. Connect @goathackbot credentials for live on-chain payments.
+              </div>
+            )}
+
             {/* Transactions */}
             <div className="bg-gray-900 border border-green-800 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-green-400 mb-4">
-                ✅ On-chain Transactions ({result.transactions.length})
+                ✅ Transactions ({result.transactions.length})
               </h3>
               <div className="space-y-2">
                 {result.transactions.map((tx) => (
                   <div key={tx.txHash} className="flex items-center justify-between bg-gray-800 rounded-lg px-4 py-3">
                     <div>
                       <span className="font-semibold">{tx.agent}</span>
-                      <span className="text-gray-400 text-sm ml-3">
-                        {tx.amount} {tx.currency}
-                      </span>
+                      <span className="text-gray-400 text-sm ml-3">{tx.amount} {tx.currency}</span>
                     </div>
                     <a
                       href={tx.explorer}
