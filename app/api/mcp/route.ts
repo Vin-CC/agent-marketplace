@@ -7,7 +7,9 @@ import {
   DEMO_AGENTS,
   AgentInfo,
 } from "@/lib/registry";
-import { payAgent, DEMO_MODE } from "@/lib/x402";
+import { payAgent, DEMO_MODE, PaymentResult } from "@/lib/x402";
+
+const AGENT_CALL_TIMEOUT_MS = 10_000;
 
 // MCP JSON-RPC types
 interface JsonRpcRequest {
@@ -105,6 +107,69 @@ const TOOLS = [
   },
 ];
 
+// Helpers
+
+function isExternalUrl(endpoint: string): boolean {
+  return endpoint.startsWith("http://") || endpoint.startsWith("https://");
+}
+
+async function callAgentEndpoint(
+  _agent: AgentInfo,
+  endpoint: string,
+  task: string,
+  input: string,
+  targetLanguage: string | undefined,
+  payment: PaymentResult
+): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    AGENT_CALL_TIMEOUT_MS
+  );
+
+  try {
+    let url: string;
+    let body: Record<string, unknown>;
+
+    if (isExternalUrl(endpoint)) {
+      url = endpoint;
+      body = {
+        task,
+        input,
+        ...(targetLanguage && { targetLanguage }),
+        payment: {
+          txHash: payment.txHash,
+          orderId: payment.orderId,
+          explorerUrl: payment.explorerUrl,
+        },
+      };
+    } else {
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      url = `${baseUrl}${endpoint}`;
+      body = { text: input };
+      if (task === "translate" && targetLanguage)
+        body.targetLanguage = targetLanguage;
+      if (task === "explain-code") body.code = input;
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-payment": payment.txHash,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const data = await response.json();
+    return data.result || data.error || "No output";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Tool handlers
 
 async function handleDiscoverAgents(params: Record<string, unknown>) {
@@ -138,7 +203,7 @@ async function handleDiscoverAgents(params: Record<string, unknown>) {
     id: a.id,
     name: a.name,
     description: a.description,
-    price: getAgentPrice(a.name) + " USDT",
+    price: getAgentPrice(a) + " USDT",
     merchantId: a.merchantId,
     x402Support: a.x402Support,
   }));
@@ -165,12 +230,14 @@ async function handleHireAgent(params: Record<string, unknown>) {
     return { error: `Agent #${agentId} not found` };
   }
 
-  const endpoint = getAgentEndpoint(agent.name);
+  const endpoint = getAgentEndpoint(agent);
   if (!endpoint) {
-    return { error: `No known endpoint for agent "${agent.name}"` };
+    return {
+      error: `Agent #${agentId} has no callable endpoint. It may be discoverable but not hirable.`,
+    };
   }
 
-  const price = getAgentPrice(agent.name);
+  const price = getAgentPrice(agent);
   if (parseFloat(price) > parseFloat(budgetUsdt)) {
     return {
       error: `Agent price (${price} USDT) exceeds budget (${budgetUsdt} USDT)`,
@@ -180,30 +247,22 @@ async function handleHireAgent(params: Record<string, unknown>) {
   // Pay via x402
   const payment = await payAgent(agent.merchantId, price);
 
-  // Call agent endpoint
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-  const body: Record<string, string> = { text: input };
-  if (task === "translate" && targetLanguage)
-    body.targetLanguage = targetLanguage;
-  if (task === "explain-code") body.code = input;
-
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-payment": payment.txHash,
-    },
-    body: JSON.stringify(body),
-  });
-
-  const data = await response.json();
+  // Call agent endpoint (local or external)
+  const result = await callAgentEndpoint(
+    agent,
+    endpoint,
+    task,
+    input,
+    targetLanguage,
+    payment
+  );
 
   return {
     job_id: `job_${Date.now()}`,
     agent: agent.name,
     tx_hash: payment.txHash,
     order_id: payment.orderId,
-    result: data.result || data.error || "No output",
+    result,
     explorer_url: payment.explorerUrl,
     demo_mode: DEMO_MODE,
   };
@@ -232,8 +291,8 @@ async function handleGetAgent(params: Record<string, unknown>) {
     x402Support: agent.x402Support,
     active: agent.active,
     merchantId: agent.merchantId,
-    price: getAgentPrice(agent.name) + " USDT",
-    endpoint: getAgentEndpoint(agent.name) || null,
+    price: getAgentPrice(agent) + " USDT",
+    endpoint: getAgentEndpoint(agent) || null,
   };
 }
 

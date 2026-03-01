@@ -13,6 +13,8 @@ export interface AgentMetadata {
   x402Support: boolean;
   active: boolean;
   merchantId: string;
+  endpoint?: string;
+  priceUsdt?: string;
 }
 
 export interface AgentInfo {
@@ -22,6 +24,8 @@ export interface AgentInfo {
   x402Support: boolean;
   active: boolean;
   merchantId: string;
+  endpoint?: string;
+  priceUsdt?: string;
 }
 
 // Map known agent names to local API endpoints
@@ -87,6 +91,8 @@ export async function getRegisteredAgents(): Promise<AgentInfo[]> {
             x402Support: metadata.x402Support,
             active: metadata.active,
             merchantId: metadata.merchantId,
+            endpoint: metadata.endpoint,
+            priceUsdt: metadata.priceUsdt,
           });
         }
       } catch (err) {
@@ -118,6 +124,8 @@ export async function getAgent(id: number): Promise<AgentInfo | null> {
       x402Support: metadata.x402Support,
       active: metadata.active,
       merchantId: metadata.merchantId,
+      endpoint: metadata.endpoint,
+      priceUsdt: metadata.priceUsdt,
     };
   } catch {
     return null;
@@ -125,17 +133,19 @@ export async function getAgent(id: number): Promise<AgentInfo | null> {
 }
 
 /**
- * Resolve a known agent name to a local API endpoint.
+ * Resolve an agent's callable endpoint.
+ * Prefers the on-chain endpoint from metadata, falls back to known local routes.
  */
-export function getAgentEndpoint(agentName: string): string | undefined {
-  return AGENT_ENDPOINTS[agentName];
+export function getAgentEndpoint(agent: AgentInfo): string | undefined {
+  return agent.endpoint || AGENT_ENDPOINTS[agent.name];
 }
 
 /**
- * Get default price for an agent (used when registry metadata doesn't include price).
+ * Get the price for an agent.
+ * Prefers on-chain priceUsdt from metadata, falls back to default.
  */
-export function getAgentPrice(_agentName: string): string {
-  return DEFAULT_PRICE_USDT;
+export function getAgentPrice(agent: AgentInfo): string {
+  return agent.priceUsdt ?? DEFAULT_PRICE_USDT;
 }
 
 // Fallback: hardcoded agents for demo when registry is unreachable or empty
@@ -147,6 +157,7 @@ export const DEMO_AGENTS: AgentInfo[] = [
     x402Support: true,
     active: true,
     merchantId: "demo_summarizer",
+    priceUsdt: "0.10",
   },
   {
     id: 1,
@@ -155,6 +166,7 @@ export const DEMO_AGENTS: AgentInfo[] = [
     x402Support: true,
     active: true,
     merchantId: "demo_translator",
+    priceUsdt: "0.10",
   },
   {
     id: 2,
@@ -163,5 +175,6 @@ export const DEMO_AGENTS: AgentInfo[] = [
     x402Support: true,
     active: true,
     merchantId: "demo_code_explainer",
+    priceUsdt: "0.10",
   },
 ];
