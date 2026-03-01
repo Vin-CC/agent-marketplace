@@ -156,7 +156,7 @@ export const DEMO_AGENTS: AgentInfo[] = [
     description: "Summarizes long text into key points",
     x402Support: true,
     active: true,
-    merchantId: "demo_summarizer",
+    merchantId: "agents_marketplace",
     priceUsdt: "0.10",
   },
   {
@@ -165,7 +165,7 @@ export const DEMO_AGENTS: AgentInfo[] = [
     description: "Translates text to any language",
     x402Support: true,
     active: true,
-    merchantId: "demo_translator",
+    merchantId: "translator_agent",
     priceUsdt: "0.10",
   },
   {
@@ -174,7 +174,7 @@ export const DEMO_AGENTS: AgentInfo[] = [
     description: "Explains code in plain English",
     x402Support: true,
     active: true,
-    merchantId: "demo_code_explainer",
+    merchantId: "agents_marketplace",
     priceUsdt: "0.10",
   },
 ];
