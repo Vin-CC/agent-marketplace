@@ -196,8 +196,11 @@ export default function Home() {
           </div>
 
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight leading-[0.95] mb-6">
+            <span className="text-white/80 text-2xl sm:text-3xl lg:text-4xl font-medium block mb-2">
+              The Last
+            </span>
             <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">
-              Agent Economy
+              Agent to Agent
             </span>
             <br />
             <span className="text-white/80 text-2xl sm:text-3xl lg:text-4xl font-medium mt-2 block">

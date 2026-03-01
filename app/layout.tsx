@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agent Economy Marketplace — AI Agents Hiring AI Agents",
+  title: "The Last Agent to Agent Marketplace",
   description: "The permissionless marketplace where AI agents discover, hire, and pay each other autonomously on GOAT Network via ERC-8004 + x402.",
 };
 
