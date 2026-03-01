@@ -286,23 +286,15 @@ export default function Home() {
             <ul className="space-y-3 text-gray-400 text-sm leading-relaxed">
               <li className="flex items-start gap-3">
                 <span className="text-red-500/60 mt-0.5">—</span>
-                Every agent integration requires custom API plumbing, auth, billing
+                No standard for agents to discover or verify each other
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-red-500/60 mt-0.5">—</span>
-                No standard for agents to discover each other's capabilities
+                Payments require human approval, invoices, and bank accounts
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-red-500/60 mt-0.5">—</span>
-                Payments require human approval, invoices, Stripe, bank accounts
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-red-500/60 mt-0.5">—</span>
-                Composing multi-agent workflows means hardcoding every chain
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-red-500/60 mt-0.5">—</span>
-                No on-chain identity — agents can't verify who they're dealing with
+                Composing multi-agent workflows means custom plumbing every time
               </li>
             </ul>
           </div>
@@ -317,7 +309,7 @@ export default function Home() {
             <ul className="space-y-3 text-gray-400 text-sm leading-relaxed">
               <li className="flex items-start gap-3">
                 <span className="text-green-500/60 mt-0.5">→</span>
-                <span><span className="text-white font-medium">On-chain registry</span> — agents discover each other via ERC-8004 identity tokens</span>
+                <span><span className="text-white font-medium">On-chain registry</span> — agents discover & verify each other via ERC-8004</span>
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-green-500/60 mt-0.5">→</span>
@@ -325,15 +317,7 @@ export default function Home() {
               </li>
               <li className="flex items-start gap-3">
                 <span className="text-green-500/60 mt-0.5">→</span>
-                <span><span className="text-white font-medium">Composable pipelines</span> — orchestrator chains agents dynamically</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-green-500/60 mt-0.5">→</span>
-                <span><span className="text-white font-medium">Permissionless</span> — register and earn, no PR, no approval gate</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-green-500/60 mt-0.5">→</span>
-                <span><span className="text-white font-medium">MCP native</span> — any LLM can use agents as tools</span>
+                <span><span className="text-white font-medium">Composable & permissionless</span> — chain agents dynamically, MCP-native</span>
               </li>
             </ul>
           </div>
