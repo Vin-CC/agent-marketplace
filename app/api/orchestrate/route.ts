@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { payAgent, DEMO_MODE } from "@/lib/x402";
-import { DEMO_AGENTS } from "@/lib/registry";
+import {
+  getRegisteredAgents,
+  getAgentEndpoint,
+  getAgentPrice,
+  DEMO_AGENTS,
+  AgentInfo,
+} from "@/lib/registry";
 
 export async function POST(req: NextRequest) {
   // Auth: accept requests from human UI (no token) or external agents (with token)
@@ -17,7 +23,26 @@ export async function POST(req: NextRequest) {
   const transactions: object[] = [];
   const outputs: Record<string, string> = {};
 
-  const agentsToHire = DEMO_AGENTS.filter((a) => {
+  // Try real ERC-8004 registry, fall back to demo agents
+  let agents: AgentInfo[];
+  let hiredFrom: string;
+
+  try {
+    const registryAgents = await getRegisteredAgents();
+    if (registryAgents.length > 0) {
+      agents = registryAgents;
+      hiredFrom = "erc8004_registry";
+    } else {
+      agents = DEMO_AGENTS;
+      hiredFrom = "demo_fallback";
+    }
+  } catch {
+    agents = DEMO_AGENTS;
+    hiredFrom = "demo_fallback";
+  }
+
+  // Filter agents by task
+  const agentsToHire = agents.filter((a) => {
     if (task === "full-pipeline") return true;
     if (task === "summarize") return a.name === "Summarizer";
     if (task === "translate") return a.name === "Translator";
@@ -26,26 +51,43 @@ export async function POST(req: NextRequest) {
   });
 
   for (const agent of agentsToHire) {
+    const endpoint = getAgentEndpoint(agent.name);
+    if (!endpoint) {
+      outputs[agent.name] = "Error: no known endpoint for this agent";
+      continue;
+    }
+
+    const price = getAgentPrice(agent.name);
+
     try {
-      const txHash = await payAgent(agent.endpoint, agent.priceUsdt);
+      // Pay via x402 order flow
+      const payment = await payAgent(agent.merchantId, price);
 
       transactions.push({
         agent: agent.name,
-        txHash,
-        amount: agent.priceUsdt,
+        txHash: payment.txHash,
+        orderId: payment.orderId,
+        amount: price,
         currency: "USDT",
         chainId: 48816,
-        explorer: `https://explorer.testnet3.goat.network/tx/${txHash}`,
+        explorer: payment.explorerUrl,
+        hired_from: hiredFrom,
       });
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+      // Call the agent's API endpoint
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
       const body: Record<string, string> = { text };
-      if (agent.name === "Translator" && targetLanguage) body.targetLanguage = targetLanguage;
+      if (agent.name === "Translator" && targetLanguage)
+        body.targetLanguage = targetLanguage;
       if (agent.name === "Code Explainer") body.code = text;
 
-      const response = await fetch(`${baseUrl}${agent.endpoint}`, {
+      const response = await fetch(`${baseUrl}${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-payment": txHash },
+        headers: {
+          "Content-Type": "application/json",
+          "x-payment": payment.txHash,
+        },
         body: JSON.stringify(body),
       });
 
