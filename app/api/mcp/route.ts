@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ethers } from "ethers";
 import {
   getRegisteredAgents,
   getAgent,
@@ -117,6 +118,42 @@ const TOOLS = [
         },
       },
       required: ["agent_id"],
+    },
+  },
+  {
+    name: "generate_wallet",
+    description:
+      "Generate a fresh EVM wallet for an agent that wants to register and pay for hires on GOAT Testnet3. " +
+      "Returns address + private key. The agent must store the private key — the marketplace never stores it.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        agent_name: {
+          type: "string",
+          description:
+            "Name of the agent generating the wallet (optional, for context only)",
+        },
+      },
+    },
+  },
+  {
+    name: "register_agent",
+    description:
+      "Full onboarding for a new agent: generates a wallet, funds it with gas, and returns everything needed " +
+      "to start hiring other agents. The agent must store the private_key immediately.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        agent_name: {
+          type: "string",
+          description: "Name of your agent",
+        },
+        description: {
+          type: "string",
+          description: "What your agent does (one line)",
+        },
+      },
+      required: ["agent_name", "description"],
     },
   },
 ];
@@ -314,6 +351,86 @@ async function handleGetAgent(params: Record<string, unknown>) {
   };
 }
 
+const FAUCET_URL = "https://faucet-agent-api.testnet3.goat.network/api/faucet";
+
+async function requestFaucet(address: string) {
+  try {
+    const res = await fetch(FAUCET_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address,
+        chain: "goat-testnet3",
+        token: "native",
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { faucet_tx: data.tx_hash || data.txHash || null };
+    }
+    return { faucet_error: `Faucet returned ${res.status}` };
+  } catch (err) {
+    return { faucet_error: `Faucet unreachable: ${String(err)}` };
+  }
+}
+
+async function handleGenerateWallet(params: Record<string, unknown>) {
+  const agentName = (params.agent_name as string) || "anonymous";
+  const wallet = ethers.Wallet.createRandom();
+
+  // Log only public info
+  console.log(`[wallet] Generated wallet for "${agentName}": ${wallet.address}`);
+
+  const faucetResult = await requestFaucet(wallet.address);
+
+  return {
+    address: wallet.address,
+    private_key: wallet.privateKey,
+    chain_id: 48816,
+    rpc_url: "https://rpc.testnet3.goat.network",
+    ...faucetResult,
+    next_steps: [
+      "1. Store your private_key securely — never share it",
+      "2. Use your address to receive x402 payments",
+      "3. Use your private_key in hire_agent calls to pay for services",
+      "4. Get more tokens at https://bridge.testnet3.goat.network/faucet",
+    ],
+    warning:
+      "Store your private key now. It will never be shown again. The marketplace does not store it.",
+  };
+}
+
+async function handleRegisterAgent(params: Record<string, unknown>) {
+  const agentName = params.agent_name as string;
+  const description = params.description as string;
+
+  const wallet = ethers.Wallet.createRandom();
+
+  console.log(`[register] New agent "${agentName}": ${wallet.address}`);
+
+  const faucetResult = await requestFaucet(wallet.address);
+
+  return {
+    agent: {
+      name: agentName,
+      description,
+    },
+    wallet: {
+      address: wallet.address,
+      private_key: wallet.privateKey,
+    },
+    chain_id: 48816,
+    rpc_url: "https://rpc.testnet3.goat.network",
+    ...faucetResult,
+    how_to_hire:
+      "Call hire_agent with your private_key as caller_private_key to pay for services autonomously.",
+    how_to_be_hired:
+      "Register on-chain via ERC-8004 with your endpoint and priceUsdt in the tokenURI metadata.",
+    warning:
+      "Store your private key now. It will never be shown again. The marketplace does not store it.",
+  };
+}
+
 // Route handler
 
 export async function POST(req: NextRequest) {
@@ -374,6 +491,12 @@ export async function POST(req: NextRequest) {
             break;
           case "get_agent":
             result = await handleGetAgent(args);
+            break;
+          case "generate_wallet":
+            result = await handleGenerateWallet(args);
+            break;
+          case "register_agent":
+            result = await handleRegisterAgent(args);
             break;
           default:
             return jsonrpcError(
