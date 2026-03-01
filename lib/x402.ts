@@ -5,6 +5,7 @@ const DEMO_MODE = !process.env.GOATX402_API_KEY || !process.env.AGENT_PRIVATE_KE
 export { DEMO_MODE };
 
 export interface PaymentResult {
+  callerAddress?: string;
   txHash: string;
   orderId: string;
   explorerUrl: string;
@@ -62,6 +63,7 @@ export async function payAgent(
     txHash: receipt.hash,
     orderId: order.orderId,
     explorerUrl: `https://explorer.testnet3.goat.network/tx/${receipt.hash}`,
+    callerAddress: wallet.address,
   };
 }
 
