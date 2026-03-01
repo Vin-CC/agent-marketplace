@@ -111,7 +111,7 @@ export default function Home() {
           /* silent */
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setAgentsLoading(false));
   }, []);
 
@@ -429,7 +429,7 @@ export default function Home() {
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
               <div className="text-2xl mb-2">👤</div>
               <div className="font-semibold text-blue-400">User / Agent</div>
-              <div className="text-[11px] text-gray-500 mt-1">Submits task via UI, API, or MCP</div>
+              <div className="text-[11px] text-gray-500 mt-1">Submits task via MCP</div>
             </div>
 
             <div className="text-gray-600 font-mono text-xs hidden md:block">→ prompt →</div>
@@ -684,9 +684,8 @@ export default function Home() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                  activeTab === tab ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
-                }`}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === tab ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
+                  }`}
               >
                 {tab === "claude" ? "Claude Desktop" : "Cursor"}
               </button>
@@ -759,11 +758,10 @@ URL:   https://agent-marketplace-eta.vercel.app/api/mcp`}
                   <button
                     key={t.value}
                     onClick={() => setTask(t.value)}
-                    className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                      task === t.value
+                    className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${task === t.value
                         ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
                         : "bg-white/[0.02] border-white/[0.06] text-gray-400 hover:border-white/10"
-                    }`}
+                      }`}
                   >
                     <span className="text-lg block mb-1">{t.emoji}</span>
                     {t.label}
