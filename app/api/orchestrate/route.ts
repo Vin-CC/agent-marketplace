@@ -3,7 +3,16 @@ import { payAgent, DEMO_MODE } from "@/lib/x402";
 import { DEMO_AGENTS } from "@/lib/registry";
 
 export async function POST(req: NextRequest) {
-  const { task, text, targetLanguage } = await req.json();
+  // Auth: accept requests from human UI (no token) or external agents (with token)
+  const agentToken = req.headers.get("x-agent-token");
+  const validToken = process.env.AGENT_API_TOKEN;
+
+  // If a token is configured, external calls must provide it
+  if (validToken && agentToken && agentToken !== validToken) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { task, text, targetLanguage, callerAgent } = await req.json();
 
   const transactions: object[] = [];
   const outputs: Record<string, string> = {};
@@ -36,10 +45,7 @@ export async function POST(req: NextRequest) {
 
       const response = await fetch(`${baseUrl}${agent.endpoint}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-payment": txHash,
-        },
+        headers: { "Content-Type": "application/json", "x-payment": txHash },
         body: JSON.stringify(body),
       });
 
@@ -52,6 +58,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     task,
+    callerAgent: callerAgent || "human",
     timestamp: new Date().toISOString(),
     demoMode: DEMO_MODE,
     transactions,
