@@ -8,6 +8,7 @@ export interface PaymentResult {
   txHash: string;
   orderId: string;
   explorerUrl: string;
+  callerAddress: string;
 }
 
 function getClient() {
@@ -18,30 +19,49 @@ function getClient() {
   });
 }
 
-export async function payAgent(merchantId: string, amountUsdt: string): Promise<PaymentResult> {
-  if (DEMO_MODE) {
+/**
+ * Pay an agent via x402 order flow.
+ * If callerPrivateKey is provided, that wallet pays (true M2M).
+ * Otherwise falls back to the orchestrator wallet (demo/UI mode).
+ */
+export async function payAgent(
+  merchantId: string,
+  amountUsdt: string,
+  callerPrivateKey?: string
+): Promise<PaymentResult> {
+  const privateKey = callerPrivateKey ?? process.env.AGENT_PRIVATE_KEY!;
+
+  if (DEMO_MODE && !callerPrivateKey) {
     const fakeTx = "0x" + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join("");
+    const demoAddress = process.env.AGENT_PUBLIC_ADDRESS || "0x0000000000000000000000000000000000000000";
     console.log(`[DEMO] Simulated payment of ${amountUsdt} USDT to ${merchantId}: ${fakeTx}`);
-    return { txHash: fakeTx, orderId: `demo_${Date.now()}`, explorerUrl: `https://explorer.testnet3.goat.network/tx/${fakeTx}` };
+    return {
+      txHash: fakeTx,
+      orderId: `demo_${Date.now()}`,
+      explorerUrl: `https://explorer.testnet3.goat.network/tx/${fakeTx}`,
+      callerAddress: demoAddress,
+    };
   }
+
+  // Derive caller address from private key (never log the key itself)
+  const provider = new ethers.JsonRpcProvider(process.env.GOAT_RPC_URL);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const callerAddress = wallet.address;
 
   const client = getClient();
   const amountWei = ethers.parseUnits(amountUsdt, 6).toString();
-  const orchestratorAddress = process.env.AGENT_PUBLIC_ADDRESS!;
 
-  // Create order via official SDK (uses /api/v1/orders)
+  // Create order via official SDK
   const order = await client.createOrder({
     dappOrderId: `hire-${merchantId}-${Date.now()}`,
     chainId: 48816,
     tokenSymbol: "USDT",
     tokenContract: process.env.USDT_ADDRESS!,
-    fromAddress: orchestratorAddress,
+    fromAddress: callerAddress,
     amountWei,
   });
 
-  // Pay with orchestrator wallet
-  const provider = new ethers.JsonRpcProvider(process.env.GOAT_RPC_URL);
-  const wallet = new ethers.Wallet(process.env.AGENT_PRIVATE_KEY!, provider);
+  // ERC-20 transfer from caller wallet to pay_to_address
   const erc20 = new ethers.Contract(
     process.env.USDT_ADDRESS!,
     ["function transfer(address to, uint256 amount) returns (bool)"],
@@ -55,6 +75,7 @@ export async function payAgent(merchantId: string, amountUsdt: string): Promise<
     txHash: receipt.hash,
     orderId: order.orderId,
     explorerUrl: `https://explorer.testnet3.goat.network/tx/${receipt.hash}`,
+    callerAddress,
   };
 }
 

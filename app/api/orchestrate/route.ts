@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { task, text, targetLanguage, callerAgent } = await req.json();
+  const { task, text, targetLanguage, callerAgent, callerPrivateKey, callerAddress } =
+    await req.json();
 
   const transactions: object[] = [];
   const outputs: Record<string, string> = {};
@@ -125,8 +126,8 @@ export async function POST(req: NextRequest) {
     const price = getAgentPrice(agent);
 
     try {
-      // Pay via x402 order flow
-      const payment = await payAgent(agent.merchantId, price);
+      // Pay via x402 order flow (caller pays if key provided, else orchestrator)
+      const payment = await payAgent(agent.merchantId, price, callerPrivateKey);
 
       transactions.push({
         agent: agent.name,
@@ -137,6 +138,8 @@ export async function POST(req: NextRequest) {
         chainId: 48816,
         explorer: payment.explorerUrl,
         hired_from: hiredFrom,
+        paid_by: callerAddress ?? payment.callerAddress,
+        self_funded: !!callerPrivateKey,
       });
 
       // Call the agent endpoint (local or external)

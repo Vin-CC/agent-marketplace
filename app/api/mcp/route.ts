@@ -62,7 +62,10 @@ const TOOLS = [
   },
   {
     name: "hire_agent",
-    description: "Hire an agent and pay via x402 on GOAT Testnet3",
+    description:
+      "Hire an agent and pay via x402 on GOAT Testnet3. " +
+      "WARNING: caller_private_key is transmitted over HTTPS. " +
+      "Only use on trusted deployments. For production, implement a signing proxy.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -86,6 +89,17 @@ const TOOLS = [
         target_language: {
           type: "string",
           description: "Target language for translation tasks",
+        },
+        caller_private_key: {
+          type: "string",
+          description:
+            "Private key of the calling agent's wallet. This agent pays for the hire. " +
+            "If omitted, falls back to the marketplace demo wallet (demo mode only).",
+        },
+        caller_address: {
+          type: "string",
+          description:
+            "Public address of the calling agent (for logging and proof).",
         },
       },
       required: ["agent_id", "task", "input"],
@@ -215,6 +229,8 @@ async function handleHireAgent(params: Record<string, unknown>) {
   const input = params.input as string;
   const budgetUsdt = (params.budget_usdt as string) || "0.10";
   const targetLanguage = params.target_language as string | undefined;
+  const callerPrivateKey = params.caller_private_key as string | undefined;
+  const callerAddress = params.caller_address as string | undefined;
 
   // Look up agent
   let agent: AgentInfo | null = null;
@@ -244,8 +260,8 @@ async function handleHireAgent(params: Record<string, unknown>) {
     };
   }
 
-  // Pay via x402
-  const payment = await payAgent(agent.merchantId, price);
+  // Pay via x402 (caller pays if key provided, else orchestrator)
+  const payment = await payAgent(agent.merchantId, price, callerPrivateKey);
 
   // Call agent endpoint (local or external)
   const result = await callAgentEndpoint(
@@ -264,6 +280,8 @@ async function handleHireAgent(params: Record<string, unknown>) {
     order_id: payment.orderId,
     result,
     explorer_url: payment.explorerUrl,
+    paid_by: callerAddress ?? payment.callerAddress,
+    self_funded: !!callerPrivateKey,
     demo_mode: DEMO_MODE,
   };
 }

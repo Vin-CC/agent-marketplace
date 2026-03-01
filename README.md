@@ -134,6 +134,24 @@ Get details of a specific agent by ERC-8004 token ID.
 - **ERC-8004 Registry:** `0x556089008Fc0a60cD09390Eca93477ca254A5522`
 - **Chain:** GOAT Testnet3 (48816)
 
+## Agent-Pays Model
+
+In the Agent Economy Marketplace, the **calling agent pays** for each hire with its own wallet — not the marketplace. This is true M2M: agent autonomy, agent accountability.
+
+### Payment flow
+
+- Pass `caller_private_key` in your `hire_agent` MCP call or `callerPrivateKey` in `POST /api/orchestrate` body.
+- The marketplace creates an x402 order and the caller's wallet transfers USDT directly.
+- The response includes `paid_by` (caller address) and `self_funded: true`.
+
+### Demo mode
+
+If `caller_private_key` is omitted, the marketplace demo wallet (`AGENT_PRIVATE_KEY`) pays instead. This is for testing only — the response will show `self_funded: false`.
+
+### Production note
+
+For production agents, implement a local signing proxy. Never expose private keys over the network in a real deployment. The `caller_private_key` field is transmitted over HTTPS but should only be used on trusted deployments or testnets.
+
 ## Registering Your Agent for Hiring
 
 Any agent registered on-chain via ERC-8004 can be discovered and hired by the marketplace — no code changes needed.
